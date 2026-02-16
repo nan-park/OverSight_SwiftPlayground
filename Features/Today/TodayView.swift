@@ -3,28 +3,21 @@ import SwiftData
 
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
-    @State private var entries: [Entry] = []
-    @State private var debugMessage: String = ""
-
-    private var repository: EntryRepository {
-        EntryRepository(modelContext: modelContext)
-    }
+    @State private var viewModel: TodayViewModel?
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: Spacing.md) {
+            VStack(spacing: Spacing.lg) {
                 Spacer()
 
-                Image(systemName: "eyes")
-                    .font(.system(size: 64))
-                    .foregroundStyle(.secondary)
-
-                Text("OverSight")
-                    .font(.displayLarge)
-
-                Text("오늘의 기록을 시작하세요")
-                    .font(.bodyLarge)
-                    .foregroundStyle(.secondary)
+                if let viewModel {
+                    Text(viewModel.todayQuestion)
+                        .font(.displayMedium)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(8)
+                } else {
+                    ProgressView()
+                }
 
                 Spacer()
 
@@ -41,12 +34,28 @@ struct TodayView: View {
                     }
                 }
             }
+            .onAppear {
+                if viewModel == nil {
+                    viewModel = TodayViewModel(
+                        repository: EntryRepository(modelContext: modelContext)
+                    )
+                }
+                viewModel?.loadTodayEntry()
+            }
         }
     }
 
     #if DEBUG
+    @State private var debugMessage: String = ""
+
     private var debugSection: some View {
         VStack(spacing: Spacing.sm) {
+            if let entry = viewModel?.todayEntry {
+                Text("Entry exists: \(entry.question)")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+            }
+
             Text(debugMessage)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -56,10 +65,11 @@ struct TodayView: View {
                     createTestEntry()
                 }
                 Button("Fetch") {
-                    fetchEntries()
+                    viewModel?.loadTodayEntry()
+                    debugMessage = viewModel?.todayEntry != nil ? "Entry found" : "No entry"
                 }
                 Button("Delete") {
-                    deleteLatestEntry()
+                    deleteEntry()
                 }
             }
             .buttonStyle(.bordered)
@@ -67,36 +77,28 @@ struct TodayView: View {
     }
 
     private func createTestEntry() {
+        guard let viewModel else { return }
         let entry = Entry(
             day: Date(),
-            question: "테스트 질문",
+            question: viewModel.todayQuestion,
             reflection: "테스트 회고"
         )
+        let repo = EntryRepository(modelContext: modelContext)
         do {
-            try repository.upsert(entry)
-            debugMessage = "Created entry for \(entry.day.formatted(date: .abbreviated, time: .omitted))"
+            try repo.upsert(entry)
+            viewModel.loadTodayEntry()
+            debugMessage = "Created entry"
         } catch {
             debugMessage = "Error: \(error.localizedDescription)"
         }
     }
 
-    private func fetchEntries() {
+    private func deleteEntry() {
+        let repo = EntryRepository(modelContext: modelContext)
         do {
-            entries = try repository.fetchAll()
-            debugMessage = "Fetched \(entries.count) entries"
-        } catch {
-            debugMessage = "Error: \(error.localizedDescription)"
-        }
-    }
-
-    private func deleteLatestEntry() {
-        do {
-            if let latest = try repository.fetchAll().first {
-                try repository.delete(latest)
-                debugMessage = "Deleted entry"
-            } else {
-                debugMessage = "No entries to delete"
-            }
+            try repo.delete(for: Date())
+            viewModel?.loadTodayEntry()
+            debugMessage = "Deleted entry"
         } catch {
             debugMessage = "Error: \(error.localizedDescription)"
         }
