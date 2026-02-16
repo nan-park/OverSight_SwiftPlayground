@@ -39,12 +39,15 @@ struct TodayView: View {
             .onAppear {
                 setupViewModel()
             }
-            .fullScreenCover(isPresented: $showCamera) {
-                CameraPicker { data in
-                    if let data {
-                        pendingPhotoData = data
+            .fullScreenCover(isPresented: $showCamera, onDismiss: {
+                if pendingPhotoData != nil {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         showConfirm = true
                     }
+                }
+            }) {
+                CameraPicker { data in
+                    pendingPhotoData = data
                 }
                 .ignoresSafeArea()
             }
