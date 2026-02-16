@@ -43,31 +43,44 @@ struct ArchiveView: View {
         VStack(spacing: Spacing.lg) {
             Spacer()
 
-            // Card
-            ArchiveCardView(entry: entries[currentIndex])
-                .id(currentIndex)
-                .aspectRatio(3/4, contentMode: .fit)
-                .frame(maxHeight: 420)
-                .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 4)
-                .gesture(
-                    DragGesture(minimumDistance: 50)
-                        .onEnded { value in
-                            let horizontal = value.translation.width
-                            if horizontal < -50 && currentIndex < entries.count - 1 {
-                                withAnimation(.spring(duration: 0.3)) {
-                                    currentIndex += 1
-                                }
-                            } else if horizontal > 50 && currentIndex > 0 {
-                                withAnimation(.spring(duration: 0.3)) {
-                                    currentIndex -= 1
-                                }
+            // Card stack
+            ZStack {
+                // Background cards (stack effect)
+                ForEach(0..<min(3, entries.count - currentIndex), id: \.self) { offset in
+                    let index = currentIndex + offset
+                    if index < entries.count && offset > 0 {
+                        RoundedRectangle(cornerRadius: 0)
+                            .fill(Color.white)
+                            .aspectRatio(3/4, contentMode: .fit)
+                            .frame(maxHeight: 420)
+                            .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
+                            .offset(x: CGFloat(offset) * 6, y: CGFloat(offset) * 6)
+                            .scaleEffect(1 - CGFloat(offset) * 0.03)
+                    }
+                }
+
+                // Current card
+                ArchiveCardView(entry: entries[currentIndex])
+                    .id(currentIndex)
+                    .aspectRatio(3/4, contentMode: .fit)
+                    .frame(maxHeight: 420)
+                    .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+            }
+            .gesture(
+                DragGesture(minimumDistance: 50)
+                    .onEnded { value in
+                        let horizontal = value.translation.width
+                        if horizontal < -50 && currentIndex < entries.count - 1 {
+                            withAnimation(.spring(duration: 0.3)) {
+                                currentIndex += 1
+                            }
+                        } else if horizontal > 50 && currentIndex > 0 {
+                            withAnimation(.spring(duration: 0.3)) {
+                                currentIndex -= 1
                             }
                         }
-                )
-                .transition(.asymmetric(
-                    insertion: .move(edge: .trailing).combined(with: .opacity),
-                    removal: .move(edge: .leading).combined(with: .opacity)
-                ))
+                    }
+            )
 
             Spacer()
 
@@ -93,9 +106,40 @@ struct ArchiveView: View {
     }
 }
 
+// MARK: - Preview with Sample Data
+
 #Preview {
-    NavigationStack {
-        ArchiveView()
+    struct PreviewWrapper: View {
+        @State private var container: ModelContainer?
+
+        var body: some View {
+            NavigationStack {
+                if container != nil {
+                    ArchiveView()
+                } else {
+                    ProgressView()
+                }
+            }
+            .modelContainer(for: Entry.self, inMemory: true) { result in
+                if case .success(let container) = result {
+                    let context = container.mainContext
+
+                    // Sample entries
+                    let entries = [
+                        Entry(day: Date(), question: "What feels the most alive at this moment?", reflection: "The morning light."),
+                        Entry(day: Date().addingTimeInterval(-86400), question: "What seems out of place in this space?", reflection: "An old book on the shelf."),
+                        Entry(day: Date().addingTimeInterval(-86400 * 2), question: "What looks like it's holding something together?", reflection: "The tape on the window."),
+                        Entry(day: Date().addingTimeInterval(-86400 * 3), question: "What appears to be waiting?", reflection: "My coffee cup.")
+                    ]
+
+                    for entry in entries {
+                        context.insert(entry)
+                    }
+
+                    self.container = container
+                }
+            }
+        }
     }
-    .modelContainer(for: Entry.self, inMemory: true)
+    return PreviewWrapper()
 }
