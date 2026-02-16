@@ -8,14 +8,16 @@ import PackageDescription
 import AppleProductTypes
 
 let package = Package(
-    name: "나의 앱",
+    name: "OverSight",
     platforms: [
         .iOS("18.1")
     ],
     products: [
         .iOSApplication(
-            name: "나의 앱",
+            name: "OverSight",
             targets: ["AppModule"],
+            bundleIdentifier: "com.nika.overSight",
+            teamIdentifier: "XNZ8K49A2D",
             displayVersion: "1.0",
             bundleVersion: "1",
             appIcon: .placeholder(icon: .binoculars),
