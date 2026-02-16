@@ -5,6 +5,11 @@ struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel: TodayViewModel?
     @State private var reflectionText: String = ""
+    @State private var showCamera = false
+    @State private var showPermissionAlert = false
+    @State private var capturedPhotoData: Data?
+
+    private let cameraService = CameraService.shared
 
     var body: some View {
         NavigationStack {
@@ -30,6 +35,24 @@ struct TodayView: View {
             .onAppear {
                 setupViewModel()
             }
+            .fullScreenCover(isPresented: $showCamera) {
+                CameraPicker { data in
+                    if let data {
+                        capturedPhotoData = data
+                    }
+                }
+                .ignoresSafeArea()
+            }
+            .alert("Camera Access Required", isPresented: $showPermissionAlert) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Please allow camera access in Settings to take photos.")
+            }
         }
     }
 
@@ -54,7 +77,7 @@ struct TodayView: View {
 
     private var photoSection: some View {
         PhotoAnswerArea(
-            photoData: viewModel?.todayEntry?.photoData
+            photoData: capturedPhotoData ?? viewModel?.todayEntry?.photoData
         ) {
             handlePhotoTap()
         }
@@ -79,11 +102,26 @@ struct TodayView: View {
 
         if let entry = viewModel?.todayEntry {
             reflectionText = entry.reflection
+            capturedPhotoData = entry.photoData
         }
     }
 
     private func handlePhotoTap() {
-        // TODO: Open camera/photo picker
+        guard cameraService.isCameraAvailable else { return }
+
+        Task {
+            switch cameraService.permissionStatus {
+            case .authorized:
+                showCamera = true
+            case .notDetermined:
+                let status = await cameraService.requestPermission()
+                if status == .authorized {
+                    showCamera = true
+                }
+            case .denied, .restricted:
+                showPermissionAlert = true
+            }
+        }
     }
 }
 
