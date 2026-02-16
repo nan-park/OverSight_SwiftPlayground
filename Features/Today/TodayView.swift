@@ -1,14 +1,22 @@
 import SwiftUI
 import SwiftData
 
+struct ConfirmData: Identifiable {
+    let id = UUID()
+    let photoData: Data
+    let question: String
+    let hasExistingTodayPhoto: Bool
+    let existingReflection: String
+}
+
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel: TodayViewModel?
     @State private var reflectionText: String = ""
     @State private var showCamera = false
-    @State private var showConfirm = false
     @State private var showPermissionAlert = false
     @State private var pendingPhotoData: Data?
+    @State private var confirmData: ConfirmData?
 
     private let cameraService = CameraService.shared
 
@@ -40,10 +48,13 @@ struct TodayView: View {
                 setupViewModel()
             }
             .fullScreenCover(isPresented: $showCamera, onDismiss: {
-                if pendingPhotoData != nil {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        showConfirm = true
-                    }
+                if let photoData = pendingPhotoData, let viewModel {
+                    confirmData = ConfirmData(
+                        photoData: photoData,
+                        question: viewModel.todayQuestion,
+                        hasExistingTodayPhoto: viewModel.todayEntry?.photoData != nil,
+                        existingReflection: viewModel.todayEntry?.reflection ?? ""
+                    )
                 }
             }) {
                 CameraPicker { data in
@@ -51,24 +62,22 @@ struct TodayView: View {
                 }
                 .ignoresSafeArea()
             }
-            .fullScreenCover(isPresented: $showConfirm) {
-                if let photoData = pendingPhotoData, let viewModel {
-                    ConfirmView(
-                        photoData: photoData,
-                        question: viewModel.todayQuestion,
-                        hasExistingTodayPhoto: viewModel.todayEntry?.photoData != nil,
-                        existingReflection: viewModel.todayEntry?.reflection ?? "",
-                        onRetake: {
-                            showConfirm = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                showCamera = true
-                            }
-                        },
-                        onSaved: {
-                            reloadEntry()
+            .fullScreenCover(item: $confirmData) { data in
+                ConfirmView(
+                    photoData: data.photoData,
+                    question: data.question,
+                    hasExistingTodayPhoto: data.hasExistingTodayPhoto,
+                    existingReflection: data.existingReflection,
+                    onRetake: {
+                        confirmData = nil
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showCamera = true
                         }
-                    )
-                }
+                    },
+                    onSaved: {
+                        reloadEntry()
+                    }
+                )
             }
             .alert("Camera Access Required", isPresented: $showPermissionAlert) {
                 Button("Open Settings") {
@@ -133,6 +142,7 @@ struct TodayView: View {
         viewModel?.loadTodayEntry()
         syncReflectionText()
         pendingPhotoData = nil
+        confirmData = nil
     }
 
     private func syncReflectionText() {
