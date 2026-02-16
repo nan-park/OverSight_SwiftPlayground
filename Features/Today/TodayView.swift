@@ -6,8 +6,9 @@ struct TodayView: View {
     @State private var viewModel: TodayViewModel?
     @State private var reflectionText: String = ""
     @State private var showCamera = false
+    @State private var showConfirm = false
     @State private var showPermissionAlert = false
-    @State private var capturedPhotoData: Data?
+    @State private var pendingPhotoData: Data?
 
     private let cameraService = CameraService.shared
 
@@ -41,10 +42,30 @@ struct TodayView: View {
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { data in
                     if let data {
-                        capturedPhotoData = data
+                        pendingPhotoData = data
+                        showConfirm = true
                     }
                 }
                 .ignoresSafeArea()
+            }
+            .fullScreenCover(isPresented: $showConfirm) {
+                if let photoData = pendingPhotoData, let viewModel {
+                    ConfirmView(
+                        photoData: photoData,
+                        question: viewModel.todayQuestion,
+                        hasExistingTodayPhoto: viewModel.todayEntry?.photoData != nil,
+                        existingReflection: viewModel.todayEntry?.reflection ?? "",
+                        onRetake: {
+                            showConfirm = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                showCamera = true
+                            }
+                        },
+                        onSaved: {
+                            reloadEntry()
+                        }
+                    )
+                }
             }
             .alert("Camera Access Required", isPresented: $showPermissionAlert) {
                 Button("Open Settings") {
@@ -80,7 +101,7 @@ struct TodayView: View {
 
     private var photoSection: some View {
         PhotoAnswerArea(
-            photoData: capturedPhotoData ?? viewModel?.todayEntry?.photoData
+            photoData: viewModel?.todayEntry?.photoData
         ) {
             handlePhotoTap()
         }
@@ -89,7 +110,7 @@ struct TodayView: View {
     private var reflectionSection: some View {
         ReflectionEditor(text: $reflectionText)
             .onChange(of: reflectionText) { _, newValue in
-                viewModel?.todayEntry?.reflection = newValue
+                updateReflection(newValue)
             }
     }
 
@@ -102,11 +123,28 @@ struct TodayView: View {
             )
         }
         viewModel?.loadTodayEntry()
+        syncReflectionText()
+    }
 
+    private func reloadEntry() {
+        viewModel?.loadTodayEntry()
+        syncReflectionText()
+        pendingPhotoData = nil
+    }
+
+    private func syncReflectionText() {
         if let entry = viewModel?.todayEntry {
             reflectionText = entry.reflection
-            capturedPhotoData = entry.photoData
+        } else {
+            reflectionText = ""
         }
+    }
+
+    private func updateReflection(_ newValue: String) {
+        guard let entry = viewModel?.todayEntry else { return }
+        entry.reflection = newValue
+        entry.updatedAt = Date()
+        try? modelContext.save()
     }
 
     private func handlePhotoTap() {
