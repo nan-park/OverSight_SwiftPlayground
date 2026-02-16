@@ -3,12 +3,11 @@ import SwiftUI
 struct ReflectionEditor: View {
     @Binding var text: String
     var placeholder: String = "Because…"
-
-    @FocusState private var isFocused: Bool
+    var isFocused: FocusState<Bool>.Binding
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            if text.isEmpty && !isFocused {
+            if text.isEmpty && !isFocused.wrappedValue {
                 Text(placeholder)
                     .font(.bodyLarge)
                     .foregroundStyle(.tertiary)
@@ -18,7 +17,7 @@ struct ReflectionEditor: View {
 
             TextEditor(text: $text)
                 .font(.bodyLarge)
-                .focused($isFocused)
+                .focused(isFocused)
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
                 .frame(minHeight: 80)
@@ -34,8 +33,9 @@ struct ReflectionEditor: View {
 #Preview {
     struct PreviewWrapper: View {
         @State var text = ""
+        @FocusState var focused: Bool
         var body: some View {
-            ReflectionEditor(text: $text)
+            ReflectionEditor(text: $text, isFocused: $focused)
                 .padding()
         }
     }

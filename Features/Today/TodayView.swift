@@ -7,6 +7,7 @@ struct TodayView: View {
     @State private var reflectionText: String = ""
     @State private var showCamera = false
     @State private var showPermissionAlert = false
+    @FocusState private var isEditorFocused: Bool
 
     private let cameraService = CameraService.shared
 
@@ -81,12 +82,16 @@ struct TodayView: View {
         PhotoAnswerArea(
             photoData: viewModel?.todayEntry?.photoData
         ) {
-            handlePhotoTap()
+            if isEditorFocused {
+                isEditorFocused = false
+            } else {
+                handlePhotoTap()
+            }
         }
     }
 
     private var reflectionSection: some View {
-        ReflectionEditor(text: $reflectionText)
+        ReflectionEditor(text: $reflectionText, isFocused: $isEditorFocused)
             .onChange(of: reflectionText) { _, newValue in
                 updateReflection(newValue)
             }
