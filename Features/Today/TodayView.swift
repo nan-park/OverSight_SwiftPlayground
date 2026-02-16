@@ -24,6 +24,9 @@ struct TodayView: View {
                 .padding(Spacing.lg)
             }
             .scrollDismissesKeyboard(.interactively)
+            .onTapGesture {
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
             .navigationTitle("오늘")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
