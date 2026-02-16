@@ -16,34 +16,42 @@ struct ArchiveCardView: View {
         .accessibilityAddTraits(.isButton)
     }
 
-    // MARK: - Front
+    // MARK: - Front (Polaroid style)
 
     private var cardFront: some View {
-        ZStack(alignment: .bottom) {
-            if let photoData = entry.photoData, let uiImage = UIImage(data: photoData) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-            } else {
-                Color(.systemGray5)
-                    .overlay {
-                        Image(systemName: "photo")
-                            .font(.system(size: 64))
-                            .foregroundStyle(.secondary)
-                    }
+        VStack(spacing: 0) {
+            // Photo area
+            Group {
+                if let photoData = entry.photoData, let uiImage = UIImage(data: photoData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
+                } else {
+                    Color(.systemGray5)
+                        .overlay {
+                            Image(systemName: "photo")
+                                .font(.system(size: 48))
+                                .foregroundStyle(.secondary)
+                        }
+                }
             }
+            .padding(.horizontal, Spacing.sm)
+            .padding(.top, Spacing.sm)
 
-            Text("Tap to reveal context")
-                .font(.caption)
-                .foregroundStyle(.white)
-                .padding(.horizontal, Spacing.md)
-                .padding(.vertical, Spacing.xs)
-                .background(.ultraThinMaterial, in: Capsule())
-                .padding(.bottom, Spacing.lg)
+            // Bottom area with date
+            HStack {
+                Spacer()
+                Text(entry.day.formatted(date: .numeric, time: .omitted))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.md)
         }
-        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.xl))
+        .background(Color.white)
+        .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
     }
 
     // MARK: - Back
@@ -51,7 +59,7 @@ struct ArchiveCardView: View {
     private var cardBack: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             Text(entry.question)
-                .font(.title2)
+                .font(.title3)
                 .fontWeight(.semibold)
                 .multilineTextAlignment(.leading)
 
@@ -64,18 +72,17 @@ struct ArchiveCardView: View {
 
             Spacer()
 
-            Text(entry.day.formatted(date: .long, time: .omitted))
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
+            HStack {
+                Spacer()
+                Text(entry.day.formatted(date: .long, time: .omitted))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
         }
-        .padding(Spacing.xl)
+        .padding(Spacing.lg)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.xl))
-        .overlay {
-            RoundedRectangle(cornerRadius: CornerRadius.xl)
-                .stroke(Color(.systemGray4), lineWidth: 1)
-        }
+        .background(Color.white)
+        .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
     }
 
     // MARK: - Accessibility
@@ -100,6 +107,7 @@ struct ArchiveCardView: View {
         question: "What feels the most alive at this moment?",
         reflection: "The sunlight streaming through the window made everything feel warm and peaceful."
     ))
+    .aspectRatio(3/4, contentMode: .fit)
+    .frame(maxHeight: 420)
     .padding()
-    .frame(height: 500)
 }
