@@ -4,6 +4,7 @@ import SwiftData
 struct ArchiveView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel: ArchiveViewModel?
+    @State private var currentIndex: Int = 0
 
     var body: some View {
         Group {
@@ -11,7 +12,7 @@ struct ArchiveView: View {
                 if viewModel.entries.isEmpty {
                     emptyState
                 } else {
-                    entryList(viewModel.entries)
+                    cardStack(viewModel.entries)
                 }
             } else {
                 ProgressView()
@@ -38,11 +39,40 @@ struct ArchiveView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func entryList(_ entries: [Entry]) -> some View {
-        List(entries) { entry in
-            EntryRow(entry: entry)
+    private func cardStack(_ entries: [Entry]) -> some View {
+        VStack(spacing: Spacing.md) {
+            // Card
+            ArchiveCardView(entry: entries[currentIndex])
+                .id(currentIndex)
+                .gesture(
+                    DragGesture(minimumDistance: 50)
+                        .onEnded { value in
+                            let horizontal = value.translation.width
+                            if horizontal < -50 && currentIndex < entries.count - 1 {
+                                withAnimation(.spring(duration: 0.3)) {
+                                    currentIndex += 1
+                                }
+                            } else if horizontal > 50 && currentIndex > 0 {
+                                withAnimation(.spring(duration: 0.3)) {
+                                    currentIndex -= 1
+                                }
+                            }
+                        }
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                    removal: .move(edge: .leading).combined(with: .opacity)
+                ))
+
+            // Page indicator
+            HStack(spacing: Spacing.xs) {
+                Text("\(currentIndex + 1) / \(entries.count)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.bottom, Spacing.md)
         }
-        .listStyle(.plain)
+        .padding(.horizontal, Spacing.lg)
     }
 
     // MARK: - Actions
@@ -54,50 +84,7 @@ struct ArchiveView: View {
             )
         }
         viewModel?.loadEntries()
-    }
-}
-
-// MARK: - Entry Row
-
-struct EntryRow: View {
-    let entry: Entry
-
-    var body: some View {
-        HStack(spacing: Spacing.md) {
-            thumbnail
-
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(entry.question)
-                    .font(.bodyMedium)
-                    .lineLimit(1)
-
-                Text(entry.day.formatted(date: .abbreviated, time: .omitted))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-        }
-        .padding(.vertical, Spacing.xs)
-    }
-
-    @ViewBuilder
-    private var thumbnail: some View {
-        if let photoData = entry.photoData, let uiImage = UIImage(data: photoData) {
-            Image(uiImage: uiImage)
-                .resizable()
-                .scaledToFill()
-                .frame(width: 56, height: 56)
-                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.sm))
-        } else {
-            RoundedRectangle(cornerRadius: CornerRadius.sm)
-                .fill(Color(.systemGray5))
-                .frame(width: 56, height: 56)
-                .overlay {
-                    Image(systemName: "photo")
-                        .foregroundStyle(.secondary)
-                }
-        }
+        currentIndex = 0
     }
 }
 
