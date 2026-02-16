@@ -5,11 +5,16 @@ struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel: TodayViewModel?
     @State private var reflectionText: String = ""
+    @AppStorage("draftReflection") private var draftReflection: String = ""
     @State private var showCamera = false
     @State private var showPermissionAlert = false
     @FocusState private var isEditorFocused: Bool
 
     private let cameraService = CameraService.shared
+
+    private var hasEntry: Bool {
+        viewModel?.todayEntry != nil
+    }
 
     var body: some View {
         NavigationStack {
@@ -25,7 +30,7 @@ struct TodayView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .onTapGesture {
-                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                finishEditing()
             }
             .navigationTitle("오늘")
             .toolbar {
@@ -34,9 +39,21 @@ struct TodayView: View {
                         Image(systemName: "archivebox")
                     }
                 }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        finishEditing()
+                    }
+                    .fontWeight(.semibold)
+                }
             }
             .onAppear {
                 setupViewModel()
+            }
+            .onChange(of: isEditorFocused) { _, focused in
+                if !focused {
+                    saveReflection()
+                }
             }
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { data in
@@ -83,7 +100,7 @@ struct TodayView: View {
             photoData: viewModel?.todayEntry?.photoData
         ) {
             if isEditorFocused {
-                isEditorFocused = false
+                finishEditing()
             } else {
                 handlePhotoTap()
             }
@@ -92,9 +109,6 @@ struct TodayView: View {
 
     private var reflectionSection: some View {
         ReflectionEditor(text: $reflectionText, isFocused: $isEditorFocused)
-            .onChange(of: reflectionText) { _, newValue in
-                updateReflection(newValue)
-            }
     }
 
     // MARK: - Actions
@@ -106,22 +120,29 @@ struct TodayView: View {
             )
         }
         viewModel?.loadTodayEntry()
-        syncReflectionText()
+        loadReflectionText()
     }
 
-    private func syncReflectionText() {
+    private func loadReflectionText() {
         if let entry = viewModel?.todayEntry {
             reflectionText = entry.reflection
         } else {
-            reflectionText = ""
+            reflectionText = draftReflection
         }
     }
 
-    private func updateReflection(_ newValue: String) {
-        guard let entry = viewModel?.todayEntry else { return }
-        entry.reflection = newValue
-        entry.updatedAt = Date()
-        try? modelContext.save()
+    private func finishEditing() {
+        isEditorFocused = false
+    }
+
+    private func saveReflection() {
+        if let entry = viewModel?.todayEntry {
+            entry.reflection = reflectionText
+            entry.updatedAt = Date()
+            try? modelContext.save()
+        } else {
+            draftReflection = reflectionText
+        }
     }
 
     private func savePhoto(_ photoData: Data) {
@@ -138,12 +159,13 @@ struct TodayView: View {
                     day: Date(),
                     question: viewModel.todayQuestion,
                     photoData: photoData,
-                    reflection: ""
+                    reflection: draftReflection
                 )
                 try repository.upsert(entry)
+                draftReflection = ""
             }
             viewModel.loadTodayEntry()
-            syncReflectionText()
+            loadReflectionText()
         } catch {
             print("Failed to save photo: \(error)")
         }
