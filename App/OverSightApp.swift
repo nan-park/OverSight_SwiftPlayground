@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct OverSightApp: App {
@@ -6,5 +7,6 @@ struct OverSightApp: App {
         WindowGroup {
             TodayView()
         }
+        .modelContainer(for: Entry.self)
     }
 }
