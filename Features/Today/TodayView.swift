@@ -21,6 +21,13 @@ struct TodayView: View {
             }
             .padding(Spacing.lg)
             .navigationTitle("오늘")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: ArchiveView()) {
+                        Image(systemName: "archivebox")
+                    }
+                }
+            }
         }
     }
 }
