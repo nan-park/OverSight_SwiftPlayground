@@ -40,10 +40,15 @@ struct ArchiveView: View {
     }
 
     private func cardStack(_ entries: [Entry]) -> some View {
-        VStack(spacing: Spacing.md) {
+        VStack(spacing: Spacing.lg) {
+            Spacer()
+
             // Card
             ArchiveCardView(entry: entries[currentIndex])
                 .id(currentIndex)
+                .aspectRatio(3/4, contentMode: .fit)
+                .frame(maxHeight: 420)
+                .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 4)
                 .gesture(
                     DragGesture(minimumDistance: 50)
                         .onEnded { value in
@@ -64,15 +69,15 @@ struct ArchiveView: View {
                     removal: .move(edge: .leading).combined(with: .opacity)
                 ))
 
+            Spacer()
+
             // Page indicator
-            HStack(spacing: Spacing.xs) {
-                Text("\(currentIndex + 1) / \(entries.count)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.bottom, Spacing.md)
+            Text("\(currentIndex + 1) / \(entries.count)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, Spacing.lg)
         }
-        .padding(.horizontal, Spacing.lg)
+        .padding(.horizontal, Spacing.xl)
     }
 
     // MARK: - Actions
