@@ -18,43 +18,47 @@ struct TodayView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: Spacing.lg) {
-                    questionSection
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: Spacing.lg) {
+                        questionSection
 
-                    photoSection
+                        photoSection
 
-                    reflectionSection
+                        reflectionSection
+                            .id("reflection")
+
+                        if isEditorFocused {
+                            Spacer()
+                                .frame(height: 200)
+                        }
+                    }
+                    .padding(Spacing.lg)
                 }
-                .padding(Spacing.lg)
+                .scrollDismissesKeyboard(.interactively)
+                .onTapGesture {
+                    finishEditing()
+                }
+                .onChange(of: isEditorFocused) { _, focused in
+                    if focused {
+                        withAnimation {
+                            proxy.scrollTo("reflection", anchor: .center)
+                        }
+                    } else {
+                        saveReflection()
+                    }
+                }
             }
-            .scrollDismissesKeyboard(.interactively)
-            .onTapGesture {
-                finishEditing()
-            }
-            .navigationTitle("오늘")
+            .navigationTitle("Today")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(destination: ArchiveView()) {
                         Image(systemName: "archivebox")
                     }
                 }
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") {
-                        finishEditing()
-                    }
-                    .fontWeight(.semibold)
-                    .padding(.bottom, Spacing.sm)
-                }
             }
             .onAppear {
                 setupViewModel()
-            }
-            .onChange(of: isEditorFocused) { _, focused in
-                if !focused {
-                    saveReflection()
-                }
             }
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { data in
