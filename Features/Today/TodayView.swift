@@ -45,6 +45,7 @@ struct TodayView: View {
                         finishEditing()
                     }
                     .fontWeight(.semibold)
+                    .padding(.trailing, Spacing.sm)
                 }
             }
             .onAppear {
