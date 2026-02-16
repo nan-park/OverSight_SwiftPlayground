@@ -1,22 +1,12 @@
 import SwiftUI
 import SwiftData
 
-struct ConfirmData: Identifiable {
-    let id = UUID()
-    let photoData: Data
-    let question: String
-    let hasExistingTodayPhoto: Bool
-    let existingReflection: String
-}
-
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel: TodayViewModel?
     @State private var reflectionText: String = ""
     @State private var showCamera = false
     @State private var showPermissionAlert = false
-    @State private var pendingPhotoData: Data?
-    @State private var confirmData: ConfirmData?
 
     private let cameraService = CameraService.shared
 
@@ -47,37 +37,13 @@ struct TodayView: View {
             .onAppear {
                 setupViewModel()
             }
-            .fullScreenCover(isPresented: $showCamera, onDismiss: {
-                if let photoData = pendingPhotoData, let viewModel {
-                    confirmData = ConfirmData(
-                        photoData: photoData,
-                        question: viewModel.todayQuestion,
-                        hasExistingTodayPhoto: viewModel.todayEntry?.photoData != nil,
-                        existingReflection: viewModel.todayEntry?.reflection ?? ""
-                    )
-                }
-            }) {
+            .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { data in
-                    pendingPhotoData = data
+                    if let data {
+                        savePhoto(data)
+                    }
                 }
                 .ignoresSafeArea()
-            }
-            .fullScreenCover(item: $confirmData) { data in
-                ConfirmView(
-                    photoData: data.photoData,
-                    question: data.question,
-                    hasExistingTodayPhoto: data.hasExistingTodayPhoto,
-                    existingReflection: data.existingReflection,
-                    onRetake: {
-                        confirmData = nil
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            showCamera = true
-                        }
-                    },
-                    onSaved: {
-                        reloadEntry()
-                    }
-                )
             }
             .alert("Camera Access Required", isPresented: $showPermissionAlert) {
                 Button("Open Settings") {
@@ -138,13 +104,6 @@ struct TodayView: View {
         syncReflectionText()
     }
 
-    private func reloadEntry() {
-        viewModel?.loadTodayEntry()
-        syncReflectionText()
-        pendingPhotoData = nil
-        confirmData = nil
-    }
-
     private func syncReflectionText() {
         if let entry = viewModel?.todayEntry {
             reflectionText = entry.reflection
@@ -158,6 +117,31 @@ struct TodayView: View {
         entry.reflection = newValue
         entry.updatedAt = Date()
         try? modelContext.save()
+    }
+
+    private func savePhoto(_ photoData: Data) {
+        guard let viewModel else { return }
+        let repository = EntryRepository(modelContext: modelContext)
+
+        do {
+            if let existing = try repository.fetch(for: Date()) {
+                existing.photoData = photoData
+                existing.updatedAt = Date()
+                try modelContext.save()
+            } else {
+                let entry = Entry(
+                    day: Date(),
+                    question: viewModel.todayQuestion,
+                    photoData: photoData,
+                    reflection: ""
+                )
+                try repository.upsert(entry)
+            }
+            viewModel.loadTodayEntry()
+            syncReflectionText()
+        } catch {
+            print("Failed to save photo: \(error)")
+        }
     }
 
     private func handlePhotoTap() {
