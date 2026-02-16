@@ -14,6 +14,7 @@ struct ConfirmView: View {
     var onSaved: () -> Void
 
     @State private var reflectionText: String = ""
+    @State private var showEmptyReflectionAlert = false
 
     var body: some View {
         NavigationStack {
@@ -47,13 +48,26 @@ struct ConfirmView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(hasExistingTodayPhoto ? "Replace" : "Save") {
-                        saveEntry()
+                        handleSaveTap()
                     }
                     .fontWeight(.semibold)
                 }
             }
             .onAppear {
                 reflectionText = existingReflection
+            }
+            .alert(
+                hasExistingTodayPhoto ? "Replace without a reflection?" : "Save without a reflection?",
+                isPresented: $showEmptyReflectionAlert
+            ) {
+                Button("Add reflection", role: .cancel) {}
+                Button(hasExistingTodayPhoto ? "Replace anyway" : "Save anyway") {
+                    saveEntry()
+                }
+            } message: {
+                Text(hasExistingTodayPhoto
+                     ? "You can add a reflection anytime on the Today screen."
+                     : "A short reason helps this entry stay meaningful.")
             }
         }
     }
@@ -90,6 +104,14 @@ struct ConfirmView: View {
     }
 
     // MARK: - Actions
+
+    private func handleSaveTap() {
+        if reflectionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            showEmptyReflectionAlert = true
+        } else {
+            saveEntry()
+        }
+    }
 
     private func saveEntry() {
         let repository = EntryRepository(modelContext: modelContext)
